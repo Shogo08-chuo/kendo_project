@@ -25,12 +25,12 @@ def save_to_db(waza_name, confidence):
     conn.close()
 
 def run_kendo_analysis(video_path):
-    print(f"🥋 剣道AI分析を開始（実戦モード）: {video_path}")
+    print(f"剣道AI分析を開始: {video_path}")
     vidcap = cv2.VideoCapture(video_path)
     fps = vidcap.get(cv2.CAP_PROP_FPS)
     
     if fps <= 0:
-        print("❌ 動画を読み込めませんでした。パスを確認してください。")
+        print("動画を読み込めませんでした。パスを確認してください。")
         return
 
     count = 0
@@ -62,23 +62,23 @@ def run_kendo_analysis(video_path):
                     name = best['Name']
                     conf = best['Confidence']
                     
-                    print(f"✨ 技を検出！: {name} ({conf:.1f}%)")
+                    print(f"技を検出！: {name} ({conf:.1f}%)")
                     save_to_db(name, conf)
                     detected_count += 1
                 
             except Exception as e:
-                print(f"❌ AWS解析エラー: {e}")
+                print(f"AWS解析エラー: {e}")
                 print("※モデルがまだ起動（Starting）中かもしれません。Runningになるまでお待ちください。")
                 break
 
         count += 1
     
     vidcap.release()
-    print(f"✅ 全工程が完了しました。合計 {detected_count} 件の技をDBに保存しました。")
+    print(f"全工程が完了しました。合計 {detected_count} 件の技をDBに保存しました。")
 
 if __name__ == "__main__":
     target_video = 'video.mp4'  # 解析したい動画ファイル名
     if os.path.exists(target_video):
         run_kendo_analysis(target_video)
     else:
-        print(f"❌ {target_video} が見つかりません。")
+        print(f"{target_video} が見つかりません。")

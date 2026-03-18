@@ -12,7 +12,7 @@ import sqlite3
 MODEL_ARN = "arn:aws:rekognition:ap-northeast-1:625966732318:project/kendo-waza-detection/version/kendo-waza-detection.2026-01-28T14.21.35/1769577694890"
 
 st.set_page_config(page_title="剣道AI分析プラットフォーム", layout="wide")
-st.title("🥋 剣道専用：AI判定＆統計アプリ（真・完全版）")
+st.title("剣道専用：AI判定＆統計アプリ")
 
 # --- AWSクライアント準備（デプロイ・Secrets対応版） ---
 # Streamlit Cloudの「Advanced settings」→「Secrets」に入力した値を読み込みます
@@ -29,11 +29,11 @@ except Exception as e:
 
 # サイドバー設定
 st.sidebar.header("メニュー")
-mode = st.sidebar.radio("機能を選択", ["📸 画像1枚判定", "📊 動画スタッツ分析"])
+mode = st.sidebar.radio("機能を選択", ["画像1枚判定", "動画スタッツ分析"])
 
 # --- 【モード1】画像1枚判定 ---
-if mode == "📸 画像1枚判定":
-    st.header("📸 写真で技判定")
+if mode == "画像1枚判定":
+    st.header("写真で技判定")
     img_file = st.file_uploader("写真をアップロード...", type=['jpg', 'jpeg', 'png'])
     
     if img_file:
@@ -61,7 +61,7 @@ if mode == "📸 画像1枚判定":
 
 # --- 【モード2】動画スタッツ分析 ---
 else:
-    st.header("📊 試合動画スタッツ分析")
+    st.header("試合動画スタッツ分析")
     st.info("動画を2秒ごとに解析します。同じ技でも5秒空けば「別の一本」としてカウントします。")
     
     video_file = st.file_uploader("動画(mp4)をアップロード...", type=['mp4', 'mov'])
@@ -119,7 +119,7 @@ else:
             st.success("分析が完了しました！")
 
             # 統計を表示
-            st.subheader("📊 分析結果（スタッツ）")
+            st.subheader("分析結果（スタッツ）")
             c1, c2, c3 = st.columns(3)
             c1.metric("面", f"{waza_counts['men']}回")
             c2.metric("小手", f"{waza_counts['kote']}回")

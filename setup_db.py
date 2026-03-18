@@ -15,7 +15,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✅ データベース(kendo_app.db)を新しく作成しました！")
+    print("データベース(kendo_app.db)を新しく作成しました！")
 
 if __name__ == "__main__":
     init_db()
