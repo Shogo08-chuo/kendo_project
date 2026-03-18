@@ -133,23 +133,32 @@ else:
             c2.metric("小手", f"{waza_counts['kote']}回")
             c3.metric("胴", f"{waza_counts['do']}回")
 
-# --- 【追加】全期間の累計スタッツ表示 ---
+# --- 【修正版】累計データ表示（ここから下を書き換え） ---
 st.divider()
-st.subheader("📈 累計データ（これまでの全判定結果）")
+st.subheader("📈 累計データ（面・小手・胴のみ）")
 try:
     if os.path.exists('kendo_app.db'):
         conn = sqlite3.connect('kendo_app.db')
-        df_db = pd.read_sql_query("SELECT waza_name, COUNT(*) as count FROM waza_results GROUP BY waza_name", conn)
+        
+        # SQL文で「関係ない単語」を無視して、剣道の技だけを抽出します
+        # あなたのモデルが返す名前に合わせて ('Men', 'Kote', 'Do') などに調整してください
+        query = """
+            SELECT waza_name, COUNT(*) as count 
+            FROM waza_results 
+            WHERE waza_name IN ('Men', 'Kote', 'Do', 'men', 'kote', 'do', '面', '小手', '胴') 
+            GROUP BY waza_name
+        """
+        df_db = pd.read_sql_query(query, conn)
         conn.close()
 
         if not df_db.empty:
-            # グラフ表示
+            # グラフを表示
             st.bar_chart(df_db.set_index('waza_name'))
-            # 表でも表示
+            # 確認用に表も表示
             st.table(df_db)
         else:
-            st.info("累計データはまだありません。分析を実行するとここに蓄積されます。")
+            st.info("まだ剣道の技データ（面・小手・胴）は保存されていません。")
     else:
-        st.warning("データベースファイルが見つかりません。setup_db.pyを実行して作成してください。")
+        st.warning("データベースファイルが見つかりません。")
 except Exception as e:
-    st.error(f"累計データの読み込みに失敗しました: {e}")
+    st.error(f"データの読み込みに失敗しました: {e}")
