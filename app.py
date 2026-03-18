@@ -67,4 +67,60 @@ else:
     video_file = st.file_uploader("動画(mp4)をアップロード...", type=['mp4', 'mov'])
     
     if video_file:
-        st
+        # 動画を画面に表示
+        st.video(video_file)
+
+        if st.button("試合分析を開始"):
+            # 1. 一時ファイルとして動画を保存
+            with open("temp_video.mp4", "wb") as f:
+                f.write(video_file.read())
+
+            cap = cv2.VideoCapture("temp_video.mp4")
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            
+            waza_counts = {"men": 0, "kote": 0, "do": 0}
+            last_detected_time = {"men": -10, "kote": -10, "do": -10} # 5秒判定用
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            current_frame = 0
+            while cap.isOpened():
+                # 2秒ごとに解析（例：FPSが30なら60フレームごと）
+                cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+                ret, frame = cap.read()
+                if not ret: break
+
+                # 画像をAIが読める形式に変換
+                _, buffer = cv2.imencode('.jpg', frame)
+                img_bytes = buffer.tobytes()
+
+                # AWS Rekognition呼び出し
+                response = rekognition.detect_custom_labels(
+                    ProjectVersionArn=MODEL_ARN,
+                    Image={'Bytes': img_bytes},
+                    MinConfidence=50 # 50%以上の確信度で判定
+                )
+
+                current_time_sec = current_frame / fps
+
+                for label in response['CustomLabels']:
+                    waza_name = label['Name'].lower() # men, kote, do
+                    if waza_name in waza_counts:
+                        # 5秒ルール：前回の検出から5秒以上経過していれば「新しい一本」
+                        if current_time_sec - last_detected_time[waza_name] > 5:
+                            waza_counts[waza_name] += 1
+                            last_detected_time[waza_name] = current_time_sec
+                            st.write(f"⏱ {int(current_time_sec)}秒: **{label['Name']}** を検出！")
+
+                current_frame += int(fps * 2) # 2秒分飛ばす
+                
+            cap.release()
+            st.success("分析が完了しました！")
+
+            # 統計を表示
+            st.subheader("📊 分析結果（スタッツ）")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("面", f"{waza_counts['men']}回")
+            c2.metric("小手", f"{waza_counts['kote']}回")
+            c3.metric("胴", f"{waza_counts['do']}回")
