@@ -3,3 +3,4 @@ boto3
 pandas
 opencv-python-headless
 Pillow
+matplotlib
