@@ -1,84 +1,61 @@
-import boto3
-import cv2
-import sqlite3
+import argparse
 import os
-import time
+import sys
 
-# --- 設定（あなたのカスタムモデル情報） ---
-MODEL_ARN = "arn:aws:rekognition:ap-northeast-1:625966732318:project/kendo-waza-detection/version/kendo-waza-detection.2026-01-28T14.21.35/1769577694890"
-rekognition = boto3.client('rekognition', region_name='ap-northeast-1')
+from kendo_analyzer.config import ConfigError, load_config
+from kendo_analyzer.db import DetectionRepository
+from kendo_analyzer.rekognition import RekognitionWazaDetector, create_rekognition_client
+from kendo_analyzer.video import VideoProgress, analyze_video_file
 
-def save_to_db(waza_name, confidence):
-    conn = sqlite3.connect('kendo_app.db')
-    cursor = conn.cursor()
-    # テーブルがなければ作成
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS waza_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            waza_name TEXT,
-            confidence REAL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    cursor.execute('INSERT INTO waza_results (waza_name, confidence) VALUES (?, ?)', (waza_name, confidence))
-    conn.commit()
-    conn.close()
 
-def run_kendo_analysis(video_path):
+def run_kendo_analysis(video_path: str):
+    config = load_config()
+    client = create_rekognition_client(config)
+    detector = RekognitionWazaDetector(client, config.model_arn)
+    repository = DetectionRepository(config.db_path)
+
     print(f"剣道AI分析を開始: {video_path}")
-    vidcap = cv2.VideoCapture(video_path)
-    fps = vidcap.get(cv2.CAP_PROP_FPS)
-    
-    if fps <= 0:
-        print("動画を読み込めませんでした。パスを確認してください。")
-        return
 
-    count = 0
-    detected_count = 0
+    def show_progress(progress: VideoProgress):
+        if progress.accepted_detection:
+            detected = progress.accepted_detection
+            print(
+                f"{int(progress.current_time_sec)}秒: "
+                f"{detected.name} ({detected.confidence:.1f}%)"
+            )
 
-    while vidcap.isOpened():
-        success, frame = vidcap.read()
-        if not success: break
+    result = analyze_video_file(video_path, detector, config, on_progress=show_progress)
+    if result.detections:
+        repository.save_many(result.detections)
 
-        # 1秒ごとに解析（fpsの数値ごとに判定）
-        if count % int(fps) == 0:
-            current_sec = int(count / fps)
-            print(f"⏱ {current_sec}秒目を精査中...")
+    if result.completed:
+        print("分析が完了しました。")
+    else:
+        print(f"分析を中断しました: {result.error_message}")
 
-            # フレームを画像データに変換
-            _, buffer = cv2.imencode(".jpg", frame)
-            
-            try:
-                # AWSカスタムモデルによる判定
-                response = rekognition.detect_custom_labels(
-                    ProjectVersionArn=MODEL_ARN,
-                    Image={'Bytes': buffer.tobytes()},
-                    MinConfidence=40  # 40%以上の確信度で検出
-                )
+    print(f"面: {result.counts.get('men', 0)}件")
+    print(f"小手: {result.counts.get('kote', 0)}件")
+    print(f"胴: {result.counts.get('do', 0)}件")
+    print(f"DB保存件数: {len(result.detections)}件")
 
-                if response['CustomLabels']:
-                    # 最も確信度が高い技を取得
-                    best = max(response['CustomLabels'], key=lambda x: x['Confidence'])
-                    name = best['Name']
-                    conf = best['Confidence']
-                    
-                    print(f"技を検出！: {name} ({conf:.1f}%)")
-                    save_to_db(name, conf)
-                    detected_count += 1
-                
-            except Exception as e:
-                print(f"AWS解析エラー: {e}")
-                print("※モデルがまだ起動（Starting）中かもしれません。Runningになるまでお待ちください。")
-                break
 
-        count += 1
-    
-    vidcap.release()
-    print(f"全工程が完了しました。合計 {detected_count} 件の技をDBに保存しました。")
+def parse_args():
+    parser = argparse.ArgumentParser(description="剣道試合動画の技検出テスト")
+    parser.add_argument("video_path", nargs="?", default="video.mp4")
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
-    target_video = 'video.mp4'  # 解析したい動画ファイル名
-    if os.path.exists(target_video):
-        run_kendo_analysis(target_video)
-    else:
-        print(f"{target_video} が見つかりません。")
+    args = parse_args()
+    if not os.path.exists(args.video_path):
+        print(f"{args.video_path} が見つかりません。", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        run_kendo_analysis(args.video_path)
+    except ConfigError as exc:
+        print(f"設定エラー: {exc}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as exc:
+        print(f"解析に失敗しました: {exc}", file=sys.stderr)
+        sys.exit(1)

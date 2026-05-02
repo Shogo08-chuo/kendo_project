@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local secrets
+.env
+.streamlit/secrets.toml
+
+# Runtime data
+kendo_app.db
+*.sqlite
+*.sqlite3
+temp_video.*
+outputs/*
+!outputs/README.md
+data/*
+!data/README.md
+
+# Local media and test assets
+*.mp4
+*.mov
+*.jpg
+*.jpeg
+*.png

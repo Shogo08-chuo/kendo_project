@@ -1,0 +1,16 @@
+[project]
+name = "kendo-ai-analyzer"
+version = "0.1.0"
+description = "Kendo strike detection prototype using Streamlit and AWS Rekognition Custom Labels"
+requires-python = ">=3.9"
+dependencies = [
+  "streamlit",
+  "boto3",
+  "opencv-python-headless",
+  "Pillow",
+  "matplotlib",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

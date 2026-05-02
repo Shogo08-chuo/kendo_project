@@ -1,21 +1,15 @@
-import sqlite3
+import os
+
+from kendo_analyzer.config import DB_PATH_DEFAULT
+from kendo_analyzer.db import DetectionRepository
+
 
 def init_db():
-    conn = sqlite3.connect('kendo_app.db')
-    cursor = conn.cursor()
+    db_path = os.getenv("DB_PATH", DB_PATH_DEFAULT)
+    repository = DetectionRepository(db_path)
+    repository.init_db()
+    print(f"データベース({db_path})を初期化しました。")
 
-    # 判定結果を保存するテーブルを作成
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS waza_results (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        waza_name TEXT,
-        confidence REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    conn.commit()
-    conn.close()
-    print("データベース(kendo_app.db)を新しく作成しました！")
 
 if __name__ == "__main__":
     init_db()
